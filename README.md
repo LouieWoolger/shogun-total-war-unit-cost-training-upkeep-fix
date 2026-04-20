@@ -71,19 +71,19 @@ All patches target specific file offsets. The patcher reads and validates the ex
 Run the patcher against your game folder:
 
 ```powershell
-python .\shogun_cost_training_fix.py "C:\GOG Games\SHOGUN Total War Gold"
+python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War Gold"
 ```
 
 Or point it at the executable directly:
 
 ```powershell
-python .\shogun_cost_training_fix.py "C:\GOG Games\SHOGUN Total War Gold\ShogunM.exe"
+python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War Gold\ShogunM.exe"
 ```
 
 With no argument, the script looks for `ShogunM.exe` in the current directory:
 
 ```powershell
-python .\shogun_cost_training_fix.py
+python .\shogun_unit_cost_training_upkeep_fix.py
 ```
 
 ---
@@ -93,19 +93,19 @@ python .\shogun_cost_training_fix.py
 **Patch:**
 
 ```powershell
-python .\shogun_cost_training_fix.py "C:\GOG Games\SHOGUN Total War Gold"
+python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War Gold"
 ```
 
 **Inspect only (no changes written):**
 
 ```powershell
-python .\shogun_cost_training_fix.py "C:\GOG Games\SHOGUN Total War Gold" --verify
+python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War Gold" --verify
 ```
 
 **Restore from backup:**
 
 ```powershell
-python .\shogun_cost_training_fix.py "C:\GOG Games\SHOGUN Total War Gold" --restore
+python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War Gold" --restore
 ```
 
 `--verify` and `--restore` cannot be combined.
