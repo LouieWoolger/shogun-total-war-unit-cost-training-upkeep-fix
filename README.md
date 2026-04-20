@@ -1,4 +1,4 @@
-# Shogun: Total War Gold - Unit Cost, Upkeep, and training time fix
+# Shogun: Total War Gold - Unit Cost, Training, and Upkeep Fix
 
 Patches `ShogunM.exe` on the GOG and Steam builds of **SHOGUN: Total War** so that recruit cost, upkeep, and training time stay at their original 60-man campaign values when battle unit size is set to 120.
 
