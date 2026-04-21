@@ -117,7 +117,7 @@ python .\shogun_unit_cost_training_upkeep_fix.py "C:\GOG Games\SHOGUN Total War 
 Before writing any changes, the patcher creates:
 
 ```
-ShogunM.exe.unit-cost-training-fix.bak
+ShogunM.exe.unit-cost-training-upkeep-fix.bak
 ```
 
 in the same folder as the executable — but only if that file does not already exist. If you run the patcher a second time, your original backup is preserved.
@@ -205,5 +205,4 @@ template + 0x60  support/upkeep coefficient
 - `unknown_unsupported` — one or more byte locations contain unexpected values. Restore a clean `ShogunM.exe` first.
 - `backup_created=` — path to the newly created backup.
 - `backup_preserved=` — an existing backup was found and left untouched.
-
 
