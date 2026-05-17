@@ -35,6 +35,7 @@ class InspectResult:
     state_label: str
     unit_fix_present: bool
     audio_fix_present: bool
+    harvest_fix_present: bool
     known_hash_state: str | None
     notes: tuple[str, ...]
 
@@ -178,22 +179,82 @@ AUDIO_FIX_PATCHES = (
     ),
 )
 
+HARVEST_WAV_SUFFIX_BYTES = bytes.fromhex("60 32 F1 00")
+HARVEST_MP3_SUFFIX_BYTES = bytes.fromhex("80 33 F1 00")
+
+HARVEST_FRAME_ID_SETUP = bytes.fromhex(
+    "33 C9 "
+    "89 8C 24 80 02 00 00 "
+    "89 8C 24 84 02 00 00 "
+    "C7 84 24 88 02 00 00 0E 00 00 00 "
+    "B8 0D 00 00 00 "
+    "89 84 24 8C 02 00 00 "
+    "89 84 24 90 02 00 00"
+)
+
+HARVEST_AUDIO_CAVE_TAIL = bytes.fromhex(
+    "9C 60 8B 0D 1C 88 C2 00 85 "
+    "C9 74 11 6A 01 E8 E6 D2 E2 FF C7 05 1C 88 C2 00 "
+    "00 00 00 00 6A 68 E8 C4 15 FE FF 83 C4 04 85 C0 "
+    "74 26 89 C6 31 D2 88 56 01 89 56 04 89 56 08 C6 "
+    "46 0C 01 8D 94 24 64 02 00 00 52 89 F1 E8 AE D5 "
+    "E9 FF 89 35 1C 88 C2 00 61 9D 31 C9 E9 A5 F0 E2 FF"
+)
+
+RESTORED_HARVEST_CODE_CAVE = HARVEST_FRAME_ID_SETUP + (b"\x90" * 9) + HARVEST_AUDIO_CAVE_TAIL
+
+HARVEST_PATCHES = (
+    BytePatch(
+        name="HarvestReportUseMp3Suffix",
+        offset=0x00149D7F,
+        va=0x00549D7F,
+        original=HARVEST_WAV_SUFFIX_BYTES,
+        patched=HARVEST_MP3_SUFFIX_BYTES,
+        description="Use Gold's MP3 harvest voice clips, including Japanese Foices assets.",
+    ),
+    BytePatch(
+        name="HarvestReportVoiceHook",
+        offset=0x00149D88,
+        va=0x00549D88,
+        original=HARVEST_FRAME_ID_SETUP,
+        patched=bytes.fromhex(
+            "E9 F3 0E 1D 00 "
+            "90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 "
+            "90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 "
+            "90 90 90 90 90 90 90 90 90"
+        ),
+        description="Redirect harvest report setup to the restoration code cave.",
+    ),
+    BytePatch(
+        name="HarvestReportCodeCave",
+        offset=0x0031AC80,
+        va=0x0071AC80,
+        original=bytes(0x91),
+        patched=RESTORED_HARVEST_CODE_CAVE,
+        description="Start harvest audio while preserving Epic.BIF harvest illustration frame IDs.",
+    ),
+)
+
 KNOWN_STATE_HASHES = {
     "original": "4445DCB123D595A9B68FD18A20B98A9F9332F9651474976636CB9EC54F3D16AF",
     "unit_fix_only": "A6CECD32946C10B152ADBC8D922BEAC8A67F7A639E6C4A10297297310C427285",
     "audio_fix_only": "11356636154934CC2FF2ED26B46FD82155C05EB52873FE6763F7FD22B1344D32",
-    "both_fixes": "141C971763DC50AC2D5DD131E7FECAE87914C96FDB87B4EF25820E3B7A8C89DC",
+    "unit_audio_fixes": "141C971763DC50AC2D5DD131E7FECAE87914C96FDB87B4EF25820E3B7A8C89DC",
+    "audio_harvest_fixes": "C7C3A70B5F281546F6A44F975EE795EE157D72A276007F983588F55EC88A9B89",
+    "unit_audio_harvest_fixes": "1154B5703769809D56B80DDB5B25BD98DEE2DED19721AEEFA9254D3EB81A9F78",
 }
 
 STATE_LABELS = {
     "original": "Original executable",
     "unit_fix_only": "Unit cost + upkeep + training-time fix applied",
     "audio_fix_only": "Audio fix applied",
-    "both_fixes": "Unit cost + upkeep + training-time fix + audio fix applied",
+    "unit_audio_fixes": "Unit cost + upkeep + training-time fix + audio fix applied",
+    "audio_harvest_fixes": "Audio fix + harvest report restoration fix applied",
+    "unit_audio_harvest_fixes": "Unit cost + upkeep + training-time fix + audio fix + harvest report restoration fix applied",
     "unknown_unsupported": "Unknown or unsupported executable state",
 }
 
-PATCHABLE_STATES = {"original", "audio_fix_only"}
+PATCHABLE_STATES = {"original", "audio_fix_only", "audio_harvest_fixes"}
 
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
@@ -270,18 +331,26 @@ def inspect_exe(exe_path: Path) -> InspectResult:
     digest = sha256_bytes(data)
     unit_group, unit_notes = patch_group_status(data, UNIT_PATCHES)
     audio_group, audio_notes = patch_group_status(data, AUDIO_FIX_PATCHES)
-    notes = list(unit_notes + audio_notes)
+    harvest_group, harvest_notes = patch_group_status(data, HARVEST_PATCHES)
+    notes = list(unit_notes + audio_notes + harvest_notes)
 
-    if "unknown" in (unit_group, audio_group) or "mixed" in (unit_group, audio_group):
+    if "unknown" in (unit_group, audio_group, harvest_group) or "mixed" in (unit_group, audio_group, harvest_group):
         state_key = "unknown_unsupported"
-    elif unit_group == "clean" and audio_group == "clean":
+    elif harvest_group == "patched" and audio_group != "patched":
+        notes.append("Harvest restoration bytes are present without the required audio fix bytes.")
+        state_key = "unknown_unsupported"
+    elif unit_group == "clean" and audio_group == "clean" and harvest_group == "clean":
         state_key = "original"
-    elif unit_group == "patched" and audio_group == "clean":
+    elif unit_group == "patched" and audio_group == "clean" and harvest_group == "clean":
         state_key = "unit_fix_only"
-    elif unit_group == "clean" and audio_group == "patched":
+    elif unit_group == "clean" and audio_group == "patched" and harvest_group == "clean":
         state_key = "audio_fix_only"
-    elif unit_group == "patched" and audio_group == "patched":
-        state_key = "both_fixes"
+    elif unit_group == "patched" and audio_group == "patched" and harvest_group == "clean":
+        state_key = "unit_audio_fixes"
+    elif unit_group == "clean" and audio_group == "patched" and harvest_group == "patched":
+        state_key = "audio_harvest_fixes"
+    elif unit_group == "patched" and audio_group == "patched" and harvest_group == "patched":
+        state_key = "unit_audio_harvest_fixes"
     else:
         state_key = "unknown_unsupported"
 
@@ -305,6 +374,7 @@ def inspect_exe(exe_path: Path) -> InspectResult:
         state_label=STATE_LABELS[state_key],
         unit_fix_present=unit_group == "patched",
         audio_fix_present=audio_group == "patched",
+        harvest_fix_present=harvest_group == "patched",
         known_hash_state=known_hash_state,
         notes=tuple(notes),
     )
@@ -407,7 +477,7 @@ def apply_unit_fix(exe_path: Path) -> ApplyResult:
     before = inspect_exe(exe_path)
     if before.state_key == "unknown_unsupported":
         raise RuntimeError("The target executable is in an unknown or unsupported state.")
-    if before.state_key in {"unit_fix_only", "both_fixes"}:
+    if before.state_key in {"unit_fix_only", "unit_audio_fixes", "unit_audio_harvest_fixes"}:
         return ApplyResult(before=before, after=before, backup_path=backup_path(exe_path), created_backup=False, writes_applied=())
     if before.state_key not in PATCHABLE_STATES:
         raise RuntimeError(f"This patcher cannot patch state '{before.state_key}'.")
@@ -436,7 +506,12 @@ def apply_unit_fix(exe_path: Path) -> ApplyResult:
         write_shared(exe_path, writes)
 
     after = inspect_exe(exe_path)
-    expected_state = "both_fixes" if before.state_key == "audio_fix_only" else "unit_fix_only"
+    expected_states = {
+        "original": "unit_fix_only",
+        "audio_fix_only": "unit_audio_fixes",
+        "audio_harvest_fixes": "unit_audio_harvest_fixes",
+    }
+    expected_state = expected_states[before.state_key]
     if after.state_key != expected_state:
         raise RuntimeError(
             f"Patch completed, but the resulting state is '{after.state_key}' instead of '{expected_state}'."
@@ -471,6 +546,7 @@ def print_inspection(result: InspectResult) -> None:
     print(f"state_label={result.state_label}")
     print(f"unit_fix_present={'yes' if result.unit_fix_present else 'no'}")
     print(f"audio_fix_present={'yes' if result.audio_fix_present else 'no'}")
+    print(f"harvest_restoration_fix_present={'yes' if result.harvest_fix_present else 'no'}")
     print(f"known_reference_hash={result.known_hash_state if result.known_hash_state else 'no'}")
     print(f"backup={backup_path(result.exe_path) if backup_path(result.exe_path).exists() else 'not_found'}")
     for note in result.notes:
