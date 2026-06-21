@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> Superseded by the **[Unofficial Shogun: Total War Collection Patch](https://github.com/LouieWoolger/shogun-total-war-collection-unofficial-patch)** — a combined GUI installer containing all fixes.
+
 # Shogun: Total War Gold — Unit Cost, Training, and Upkeep Fix
 [![Discord](https://img.shields.io/discord/1505490825889579018?style=for-the-badge&logo=discord&label=Discord&color=5865F2)](https://discord.gg/zKbDADqWRC)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5F5F?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/louiewoolger)
